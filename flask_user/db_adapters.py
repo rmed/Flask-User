@@ -114,3 +114,140 @@ class SQLAlchemyAdapter(DBAdapter):
 
     def commit(self):
         self.db.session.commit()
+
+
+class PeeweeAdapter(DBAdapter):
+    """ This object is used to shield Flask-User from peewee
+        specific functions.
+    """
+    def __init__(self, db, UserClass, UserProfileClass=None, UserAuthClass=None, UserEmailClass=None, UserInvitationClass=None):
+        super(PeeweeAdapter, self).__init__(db, UserClass, UserAuthClass, UserEmailClass, UserProfileClass, UserInvitationClass)
+
+    def get_object(self, ObjectClass, id):
+        """ Retrieve one object specified by the primary key 'pk'
+            or None if no object is found.
+        """
+        try:
+            return ObjectClass.get(ObjectClass.id == id)
+
+        except ObjectClass.DoesNotExist:
+            return None
+
+    def find_all_objects(self, ObjectClass, **kwargs):
+        """ Retrieve all objects matching the case sensitive filters
+            in 'kwargs'.
+        """
+        # Convert each name/value pair in 'kwargs' into a 'where' clause
+        query = ObjectClass.select()
+
+        for field_name, field_value in kwargs.items():
+
+            # Make sure that ObjectClass has a 'field_name' property
+            field = getattr(ObjectClass, field_name, None)
+
+            if field is None:
+                raise KeyError("PeeweeAdapter.find_first_object(): Class '%s' has no field '%s'." % (ObjectClass, field_name))
+
+            # Add a 'where' clause to the query
+            query = query.where(ObjectClass.field << field_value)
+
+        # Execute query
+        return query
+
+    def find_first_object(self, ObjectClass, **kwargs):
+        """ Retrieve the first object matching the case sensitive filters
+            in 'kwargs'.
+        """
+
+        # Convert each name/value pair in 'kwargs' into a 'where' clause
+        query = ObjectClass.select()
+
+        for field_name, field_value in kwargs.items():
+
+            # Make sure that ObjectClass has a 'field_name' property
+            field = getattr(ObjectClass, field_name, None)
+
+            if field is None:
+                raise KeyError("PeeweeAdapter.find_first_object(): Class '%s' has no field '%s'." % (ObjectClass, field_name))
+
+            # Add a 'where' clause to the query (case sensitive!)
+            query = query.where(ObjectClass.field == field_value)
+
+        # Execute query
+        try:
+            return query.get()
+
+        except ObjectClass.DoesNotExist:
+            return None
+
+    def ifind_first_object(self, ObjectClass, **kwargs):
+        """ Retrieve the first object matching the case insensitive filters
+            in 'kwargs'.
+        """
+
+        # Convert each name/value pair in 'kwargs' into a filter
+        query = ObjectClass.select()
+
+        for field_name, field_value in kwargs.items():
+
+            # Make sure that ObjectClass has a 'field_name' property
+            field = getattr(ObjectClass, field_name, None)
+
+            if field is None:
+                raise KeyError("PeeweeAdapter.ifind_first_object(): Class '%s' has no field '%s'." % (ObjectClass, field_name))
+
+            # Add a 'where' clause to the query (case INsensitive!)
+            query = query.where(ObjectClass.field % field_value)
+
+        # Execute query
+        try:
+            return query.get()
+
+        except ObjectClass.DoesNotExist:
+            return None
+
+    def add_object(self, ObjectClass, **kwargs):
+        """ Add an object of class 'ObjectClass' with fields and values
+            specified in '**kwargs'.
+        """
+        if not self.db.get_autocommit():
+            self.db.begin()
+
+        object = ObjectClass(**kwargs)
+        object.save()
+
+        return object
+
+    def update_object(self, object, **kwargs):
+        """ Update object 'object' with the fields and values
+            specified in '**kwargs'.
+        """
+        if not self.db.get_autocommit():
+            self.db.begin()
+
+        for key,value in kwargs.items():
+            if hasattr(object, key):
+                setattr(object, key, value)
+
+            else:
+                raise KeyError("Object '%s' has no field '%s'." % (type(object), key))
+
+        # Save updated object
+        object.save()
+
+    def delete_object(self, object):
+        """ Delete object 'object'. """
+        if not self.db.get_autocommit():
+            self.db.begin()
+
+        object.delete_instance()
+
+    def commit(self):
+        """ Perform commit operation unless working in 'autocommit' mode. """
+        if not self.db.get_autocommit():
+            try:
+                self.db.commit()
+
+            except:
+                self.db.rollback()
+                raise
