@@ -120,8 +120,11 @@ class PeeweeAdapter(DBAdapter):
     """ This object is used to shield Flask-User from peewee
         specific functions.
     """
-    def __init__(self, db, UserClass, UserProfileClass=None, UserAuthClass=None, UserEmailClass=None, UserInvitationClass=None):
-        super(PeeweeAdapter, self).__init__(db, UserClass, UserAuthClass, UserEmailClass, UserProfileClass, UserInvitationClass)
+    def __init__(self, db, UserClass, UserProfileClass=None, UserAuthClass=None,
+            UserEmailClass=None, UserInvitationClass=None):
+        super(PeeweeAdapter, self).__init__(
+                db, UserClass, UserAuthClass, UserEmailClass,
+                UserProfileClass, UserInvitationClass)
 
     def get_object(self, ObjectClass, id):
         """ Retrieve one object specified by the primary key 'pk'
@@ -142,14 +145,13 @@ class PeeweeAdapter(DBAdapter):
 
         for field_name, field_value in kwargs.items():
 
-            # Make sure that ObjectClass has a 'field_name' property
-            field = getattr(ObjectClass, field_name, None)
+            # Make sure field exists and add a 'where' clause to the query
+            try:
+                query = query.where(
+                    getattr(ObjectClass, field_name) << field_value)
 
-            if field is None:
+            except AttributeError:
                 raise KeyError("PeeweeAdapter.find_first_object(): Class '%s' has no field '%s'." % (ObjectClass, field_name))
-
-            # Add a 'where' clause to the query
-            query = query.where(ObjectClass.field << field_value)
 
         # Execute query
         return query
@@ -164,14 +166,13 @@ class PeeweeAdapter(DBAdapter):
 
         for field_name, field_value in kwargs.items():
 
-            # Make sure that ObjectClass has a 'field_name' property
-            field = getattr(ObjectClass, field_name, None)
+            # Make sure field exists and add a 'where' clause to the query
+            try:
+                query = query.where(
+                    getattr(ObjectClass, field_name) == field_value)
 
-            if field is None:
+            except AttributeError:
                 raise KeyError("PeeweeAdapter.find_first_object(): Class '%s' has no field '%s'." % (ObjectClass, field_name))
-
-            # Add a 'where' clause to the query (case sensitive!)
-            query = query.where(ObjectClass.field == field_value)
 
         # Execute query
         try:
@@ -190,14 +191,13 @@ class PeeweeAdapter(DBAdapter):
 
         for field_name, field_value in kwargs.items():
 
-            # Make sure that ObjectClass has a 'field_name' property
-            field = getattr(ObjectClass, field_name, None)
+            # Make sure field exists and add a 'where' clause to the query
+            try:
+                query = query.where(
+                    getattr(ObjectClass, field_name) % field_value)
 
-            if field is None:
+            except AttributeError:
                 raise KeyError("PeeweeAdapter.ifind_first_object(): Class '%s' has no field '%s'." % (ObjectClass, field_name))
-
-            # Add a 'where' clause to the query (case INsensitive!)
-            query = query.where(ObjectClass.field % field_value)
 
         # Execute query
         try:
